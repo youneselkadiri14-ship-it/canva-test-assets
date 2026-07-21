@@ -40,6 +40,31 @@ GITHUB_USER = "youneselkadiri14-ship-it"
 GITHUB_REPO = "canva-test-assets"
 GITHUB_BRANCH = "main"
 
+# Fixed location of your local clone of the canva-test-assets repo.
+# Update this once if you ever move the repo folder.
+DEFAULT_REPO_FOLDER = r"C:\Users\Ultrapc\Desktop\canva-test-assets"
+
+
+def pick_folder(title: str) -> Path:
+    """Open a folder picker dialog. Falls back to a typed prompt if a
+    dialog can't be shown (e.g. no display available)."""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        folder = filedialog.askdirectory(title=title)
+        root.destroy()
+        if not folder:
+            print("No folder selected. Exiting.")
+            sys.exit(0)
+        return Path(folder)
+    except Exception:
+        typed = input(f"{title}\nEnter folder path: ").strip().strip('"')
+        return Path(typed)
+
 
 def find_capsule_folders(course_root: Path):
     """Find every folder anywhere under course_root that directly contains
@@ -90,12 +115,18 @@ def run(cmd, cwd):
 
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: python process_course.py <course_root_folder> <repo_folder>")
+    if len(sys.argv) == 3:
+        course_root = Path(sys.argv[1]).resolve()
+        repo_folder = Path(sys.argv[2]).resolve()
+    elif len(sys.argv) == 1:
+        course_root = pick_folder("Select the course's root folder (contains R1, R2, ...)").resolve()
+        repo_folder = Path(DEFAULT_REPO_FOLDER).resolve()
+        print(f"Course folder: {course_root}")
+        print(f"Repo folder:   {repo_folder}\n")
+    else:
+        print("Usage: python process_course.py [<course_root_folder> <repo_folder>]")
+        print("  (run with no arguments to pick the course folder via a dialog)")
         sys.exit(1)
-
-    course_root = Path(sys.argv[1]).resolve()
-    repo_folder = Path(sys.argv[2]).resolve()
 
     if not course_root.is_dir():
         print(f"Error: folder not found: {course_root}")
