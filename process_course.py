@@ -34,7 +34,7 @@ import subprocess
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from generate_spacers import AUDIO_PATTERN, DURATION_TOLERANCE, TRANSITION_PADDING, get_duration, make_spacer_clip  # noqa: E402
+from generate_spacers import AUDIO_PATTERN, slide_number, DURATION_TOLERANCE, TRANSITION_PADDING, get_duration, make_spacer_clip  # noqa: E402
 
 GITHUB_USER = "youneselkadiri14-ship-it"
 GITHUB_REPO = "canva-test-assets"
@@ -87,7 +87,7 @@ def generate_for_capsule(capsule_folder: Path):
 
     made, skipped = 0, 0
     for audio_file in audio_files:
-        slide_num = AUDIO_PATTERN.match(audio_file.name).group(1)
+        slide_num = slide_number(audio_file)
         spacer_path = spacers_folder / f"spacer_slide_{slide_num}.mp4"
         audio_duration = get_duration(audio_file)
         target_duration = audio_duration + TRANSITION_PADDING
@@ -119,7 +119,7 @@ def main():
         course_root = Path(sys.argv[1]).resolve()
         repo_folder = Path(sys.argv[2]).resolve()
     elif len(sys.argv) == 1:
-        course_root = pick_folder("Select the course's root folder (contains R1, R2, ...)").resolve()
+        course_root = pick_folder("Select the course folder (contains the capsule folders)").resolve()
         repo_folder = Path(DEFAULT_REPO_FOLDER).resolve()
         print(f"Course folder: {course_root}")
         print(f"Repo folder:   {repo_folder}\n")
@@ -142,7 +142,8 @@ def main():
     all_urls = {}  # capsule relative path -> list of urls
 
     for capsule_folder in capsule_folders:
-        rel_path = capsule_folder.relative_to(course_root)
+        # Prefix with the course folder's name so capsules from different courses never collide in the repo
+        rel_path = Path(course_root.name) / capsule_folder.relative_to(course_root)
         print(f"[{rel_path}]")
 
         spacers_folder, made, skipped = generate_for_capsule(capsule_folder)
@@ -159,12 +160,16 @@ def main():
             (f for f in capsule_folder.iterdir() if AUDIO_PATTERN.match(f.name)),
             key=lambda f: int(AUDIO_PATTERN.match(f.name).group(1)),
         )
+        audio_names = []
         for f in audio_files:
-            shutil.copy2(f, dest_folder / f.name)
+            # Normalise names in the repo: 1.mp3 -> voiceover_slide_001.mp3
+            name = f"voiceover_slide_{slide_number(f)}.mp3"
+            shutil.copy2(f, dest_folder / name)
+            audio_names.append(name)
 
         base_url = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}"
         all_urls[str(rel_path)] = [
-            f"{base_url}/{rel_path.as_posix()}/{f.name}" for f in (audio_files + spacer_files)
+            f"{base_url}/{rel_path.as_posix()}/{n}" for n in (audio_names + [f.name for f in spacer_files])
         ]
         print()
 
@@ -181,8 +186,7 @@ def main():
     print("\nDone. Public URLs by capsule:\n")
     for rel_path, urls in all_urls.items():
         print(f"[{rel_path}]")
-        for url in urls:
-            print(f"  {url}")
+        print(f"  {len(urls)} file(s), e.g. {urls[0]}")
         print()
 
 

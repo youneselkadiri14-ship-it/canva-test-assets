@@ -22,7 +22,13 @@ import sys
 import re
 from pathlib import Path
 
-AUDIO_PATTERN = re.compile(r"voiceover_slide_(\d+)\.mp3$", re.IGNORECASE)
+# Accepts "voiceover_slide_001.mp3" as well as plain "1.mp3", "02.mp3", ...
+AUDIO_PATTERN = re.compile(r"(?:voiceover_slide_)?(\d+)\.mp3$", re.IGNORECASE)
+
+
+def slide_number(audio_file) -> str:
+    """Zero-padded slide number (001, 002, ...) taken from an audio filename."""
+    return f"{int(AUDIO_PATTERN.match(audio_file.name).group(1)):03d}"
 DURATION_TOLERANCE = 0.05  # seconds
 TRANSITION_PADDING = 0.75  # seconds of extra spacer duration, to leave room for transitions
 
@@ -89,7 +95,7 @@ def main():
     print(f"Found {len(audio_files)} audio file(s) in {capsule_folder.resolve()}\n")
 
     for audio_file in audio_files:
-        slide_num = AUDIO_PATTERN.match(audio_file.name).group(1)
+        slide_num = slide_number(audio_file)
         spacer_name = f"spacer_slide_{slide_num}.mp4"
         spacer_path = spacers_folder / spacer_name
 
